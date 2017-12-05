@@ -4,6 +4,8 @@ import org.apache.spark.mllib.linalg.distributed.{BlockMatrix, CoordinateMatrix,
 import scala.io.Source
 import org.apache.spark.rdd.RDD
 
+// val tick = System.nanoTime()
+val tick = System.currentTimeMillis()
 
 var i = 0
 val filename = "sample_libsvm_data.txt"
@@ -42,6 +44,7 @@ var p = 0
 var q = 0
 // var coo: CoordinateMatrix = null
 var productEntries: RDD[MatrixEntry]= null
+var productListRDDs = Seq[RDD[MatrixEntry]]()
 for ( p <- 0 to t/s )
 {
 	for ( q <- 0 to s )
@@ -60,16 +63,29 @@ for ( p <- 0 to t/s )
 
 		productEntries = M_
 			.join(N_)
-			.map({ case (_, ((i, v), (k, w))) => ((i, k), (v * w)) })			
-			// .reduceByKey(_ + _)
+			.map({ case (_, ((i, v), (k, w))) => MatrixEntry(i, k, (v * w)) })			
+			// 	.reduceByKey(_ + _)
 			// .map({ case ((i, k), sum) => MatrixEntry(i, k, sum) })
-		
+		productListRDDs = productListRDDs :+ productEntries	
 	}
-	// .map({ case (_, ((i, v), (p))) => ((i, k), (p)) })			
-	// .reduceByKey(_ + _)
+
+	for (entry <- productListRDDs) {
+		// println(entry)
+		entry.map({ case MatrixEntry(i, j, v) => ((i, j), v) })
+			.reduceByKey(_ + _)
+			.map({ case ((i, k), sum) => MatrixEntry(i, k, sum) })
+
+	}
+
+			
+			// .map({ case ((i, k), sum) => MatrixEntry(i, k, sum) })
 }
 
-// println()
+// val tock = System.nanoTime()
+val tock = System.currentTimeMillis()
+
+println("Elapsed time: " + (tock - tick)/1000F + " seconds")
+// println(productListRDDs)
 // var coo = new CoordinateMatrix(productEntries)
 // val X: BlockMatrix = coo.toBlockMatrix()
 // val local2 = X.toLocalMatrix()
